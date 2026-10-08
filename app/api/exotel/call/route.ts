@@ -1,10 +1,13 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone } from "@/lib/lead";
+import { triggerWhatsApp } from "@/lib/whatsapp-trigger";
 
 /**
  * Exotel Passthru applet URL:
  *   https://<domain>/api/exotel/call?key=<EXOTEL_KEY>
  * Exotel calls it with CallSid, CallFrom, CallTo, Direction, CallType, StartTime, ... as query params.
+ * Saves the call, then sends the WhatsApp template to the caller via Interakt.
  * Always answers 200 so the call flow carries on along the success branch.
  */
 async function handle(req: Request) {
@@ -36,6 +39,14 @@ async function handle(req: Request) {
   try {
     // Passthru may fire more than once per call (e.g. retries, several applets); keep one row.
     await prisma.call.upsert({ where: { callSid }, create: { callSid, ...fields }, update: fields });
+
+    // Runs after the response is sent, so Exotel isn't kept waiting on Interakt.
+    const phone = fields.phone;
+    if (phone) {
+      after(() =>
+        triggerWhatsApp(callSid, phone).catch((err) => console.error("WhatsApp trigger error", callSid, err))
+      );
+    }
   } catch (err) {
     console.error("Failed to save Exotel call", callSid, err);
   }

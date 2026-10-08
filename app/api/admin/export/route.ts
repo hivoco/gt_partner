@@ -67,11 +67,15 @@ export async function GET(req: Request) {
         { header: "Call Type", key: "callType", width: 14 },
         { header: "Exotel Start Time", key: "startTime", width: 20 },
         { header: "Call SID", key: "callSid", width: 36 },
+        { header: "WhatsApp Status", key: "waStatus", width: 15 },
+        { header: "WhatsApp Sent At (IST)", key: "waSentAt", width: 20, style: { numFmt: dateFmt } },
+        { header: "WhatsApp Error", key: "waError", width: 40 },
         { header: "Registered", key: "registered", width: 11 },
       ],
       calls.map((c) => ({
         ...c,
         createdAt: ist(c.createdAt),
+        waSentAt: c.waSentAt ? ist(c.waSentAt) : null,
         registered: c.phone && registered.has(c.phone) ? "Yes" : "No",
       }))
     );
