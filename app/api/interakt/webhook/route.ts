@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { processInteraktPayload, type InteraktPayload } from "@/lib/interakt-webhook";
+import { isStatusEvent, processStatusEvent } from "@/lib/interakt-status";
 
 /**
  * Interakt webhook (Developer Settings → Webhook URL):
@@ -45,7 +46,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await processInteraktPayload(payload);
+    const result = isStatusEvent(payload.type)
+      ? await processStatusEvent(payload as Parameters<typeof processStatusEvent>[0])
+      : await processInteraktPayload(payload);
     await log(payload.type, result.status, payload, result.error, result.leadId);
   } catch (err) {
     console.error("Failed to process Interakt webhook", err);

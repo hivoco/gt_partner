@@ -8,6 +8,7 @@ type Extra = {
   flowToken?: string;
   answers?: Record<string, unknown>;
   callSid?: string; // exact call, when known (Interakt callback_data)
+  submittedAt?: Date; // when the user submitted, if the provider tells us
 };
 
 // Saves a validated lead, flags repeat registrations and links it to the caller's latest missed call.
@@ -37,6 +38,7 @@ export async function saveLead(data: LeadInput, extra: Extra) {
       waMessageId: extra.waMessageId,
       flowToken: extra.flowToken?.slice(0, 128),
       answers: extra.answers as object | undefined,
+      createdAt: extra.submittedAt,
     },
   });
 

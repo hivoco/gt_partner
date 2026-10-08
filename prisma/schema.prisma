@@ -19,10 +19,12 @@ model Call {
   startTime String?  @map("start_time") @db.VarChar(30)
   raw       Json
   // WhatsApp template sent via Interakt after the call
-  waStatus    String?   @map("wa_status") @db.VarChar(20) // pending | sent | failed | skipped
+  waStatus    String?   @map("wa_status") @db.VarChar(20) // pending | sent | delivered | read | failed | skipped
   waMessageId String?   @map("wa_message_id") @db.VarChar(100)
   waError     String?   @map("wa_error") @db.VarChar(255)
-  waSentAt    DateTime? @map("wa_sent_at")
+  waSentAt      DateTime? @map("wa_sent_at")
+  waDeliveredAt DateTime? @map("wa_delivered_at")
+  waReadAt      DateTime? @map("wa_read_at")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

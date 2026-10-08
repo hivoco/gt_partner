@@ -35,6 +35,7 @@ export function callWhere(p: Params): Prisma.CallWhereInput {
   const digits = p.q?.replace(/\D/g, "").slice(-10);
   return {
     createdAt: dateRange(p),
+    waStatus: p.wa === "none" ? null : p.wa || undefined,
     OR: digits ? [{ phone: { contains: digits } }, { callFrom: { contains: digits } }] : undefined,
   };
 }

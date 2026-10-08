@@ -8,7 +8,7 @@ export type InteraktPayload = {
   type?: string;
   data?: {
     customer?: { channel_phone_number?: string; phone_number?: string; country_code?: string };
-    message?: { id?: string; message_content_type?: string };
+    message?: { id?: string; message_content_type?: string; received_at_utc?: string };
     source_template_message?: { callback_data?: string };
   };
 };
@@ -42,6 +42,10 @@ export async function processInteraktPayload(payload: InteraktPayload): Promise<
     ? await prisma.call.findUnique({ where: { callSid: callbackData }, select: { callSid: true } })
     : null;
 
+  // Interakt timestamps are UTC without a zone marker.
+  const receivedAt = payload.data?.message?.received_at_utc;
+  const submittedAt = receivedAt ? new Date(receivedAt.endsWith("Z") ? receivedAt : `${receivedAt}Z`) : undefined;
+
   try {
     const lead = await saveLead(data, {
       source: "whatsapp_flow",
@@ -49,6 +53,7 @@ export async function processInteraktPayload(payload: InteraktPayload): Promise<
       answers,
       waMessageId: messageId,
       callSid: call?.callSid,
+      submittedAt: submittedAt && !isNaN(submittedAt.getTime()) ? submittedAt : undefined,
       flowToken: typeof answers.flow_token === "string" ? answers.flow_token : undefined,
     });
     return { status: "saved", leadId: lead.id };
