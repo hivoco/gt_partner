@@ -18,8 +18,11 @@ const normKey = (k: string) =>
     .toLowerCase()
     .replace(/[^a-z]/g, "");
 
-const cleanValue = (v: unknown) =>
-  typeof v === "string" ? v.replace(/^\d+_/, "").replace(/_/g, " ").trim() : v;
+// Checkbox/radio answers can arrive as lists (["0_yes"]); take the first choice.
+const cleanValue = (v: unknown): unknown => {
+  if (Array.isArray(v)) return v.length ? cleanValue(v[0]) : "";
+  return typeof v === "string" ? v.replace(/^\d+_/, "").replace(/_/g, " ").trim() : v;
+};
 
 function fieldFor(key: string): string | null {
   const k = normKey(key);
@@ -37,8 +40,8 @@ export function mapFlowAnswers(answers: Record<string, unknown>) {
     const v = out.existingRetailer.toLowerCase();
     out.existingRetailer = v.startsWith("y") ? "Yes" : v.startsWith("n") ? "No" : out.existingRetailer;
   }
-  if (Array.isArray(answers.consent)) out.consent = answers.consent.length > 0;
-  out.consent = out.consent === true || out.consent === "true" || (Array.isArray(out.consent) && out.consent.length > 0);
+  const consent = typeof out.consent === "string" ? out.consent.toLowerCase() : out.consent;
+  out.consent = consent === true || consent === "true" || consent === "yes" || consent === "agree";
   return out;
 }
 

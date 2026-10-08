@@ -1,8 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { validateLead } from "@/lib/lead";
-import { saveLead } from "@/lib/save-lead";
-import { findFlowAnswers, mapFlowAnswers } from "@/lib/flow-answers";
+import { processInteraktPayload, type InteraktPayload } from "@/lib/interakt-webhook";
 
 /**
  * Interakt webhook (Developer Settings → Webhook URL):
@@ -19,14 +17,6 @@ function validSignature(body: string, header: string | null) {
   const given = Buffer.from(header.slice(7));
   return expected.length === given.length && timingSafeEqual(expected, given);
 }
-
-type InteraktPayload = {
-  type?: string;
-  data?: {
-    customer?: { channel_phone_number?: string; phone_number?: string; country_code?: string };
-    message?: { id?: string; message_content_type?: string };
-  };
-};
 
 const ok = () => new Response("OK", { status: 200 });
 
@@ -54,43 +44,11 @@ export async function POST(req: Request) {
     return new Response("Invalid signature", { status: 401 });
   }
 
-  // Only customer messages can carry a Flow submission; delivery/status events are just logged.
-  if (payload.type !== "message_received") {
-    await log(payload.type, "ignored", payload);
-    return ok();
-  }
-
-  const answers = findFlowAnswers(payload.data?.message ?? payload.data);
-  if (!answers) {
-    await log(payload.type, "not_flow", payload);
-    return ok();
-  }
-
-  const customer = payload.data?.customer ?? {};
-  const phone =
-    customer.channel_phone_number ?? `${customer.country_code ?? ""}${customer.phone_number ?? ""}`;
-  const mapped = mapFlowAnswers(answers);
-  const { data, errors } = validateLead({ ...mapped, phone });
-  if (!data) {
-    await log(payload.type, "invalid", payload, JSON.stringify(errors));
-    return ok();
-  }
-
   try {
-    const messageId = payload.data?.message?.id;
-    const existing = messageId ? await prisma.lead.findUnique({ where: { waMessageId: messageId } }) : null;
-    const lead =
-      existing ??
-      (await saveLead(data, {
-        source: "whatsapp_flow",
-        consent: mapped.consent === true,
-        answers,
-        waMessageId: messageId,
-        flowToken: typeof answers.flow_token === "string" ? answers.flow_token : undefined,
-      }));
-    await log(payload.type, existing ? "duplicate" : "saved", payload, undefined, lead.id);
+    const result = await processInteraktPayload(payload);
+    await log(payload.type, result.status, payload, result.error, result.leadId);
   } catch (err) {
-    console.error("Failed to save Interakt lead", err);
+    console.error("Failed to process Interakt webhook", err);
     await log(payload.type, "error", payload, String(err));
   }
   return ok();
