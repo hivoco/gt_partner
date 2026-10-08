@@ -40,19 +40,25 @@ async function log(eventType: string | undefined, status: string, payload: unkno
 
 export async function POST(req: Request) {
   const raw = await req.text();
-  if (!validSignature(raw, req.headers.get("interakt-signature"))) {
-    return new Response("Invalid signature", { status: 401 });
-  }
-
   let payload: InteraktPayload;
   try {
     payload = JSON.parse(raw);
   } catch {
+    await log(undefined, "bad_json", { raw: raw.slice(0, 5000) });
     return ok();
   }
 
-  // Only customer messages can carry a Flow submission; ignore delivery/status events.
-  if (payload.type !== "message_received") return ok();
+  if (!validSignature(raw, req.headers.get("interakt-signature"))) {
+    // Logged (not processed) so a secret mismatch is visible instead of silently losing leads.
+    await log(payload.type, "bad_signature", payload, `header: ${req.headers.get("interakt-signature") ?? "missing"}`);
+    return new Response("Invalid signature", { status: 401 });
+  }
+
+  // Only customer messages can carry a Flow submission; delivery/status events are just logged.
+  if (payload.type !== "message_received") {
+    await log(payload.type, "ignored", payload);
+    return ok();
+  }
 
   const answers = findFlowAnswers(payload.data?.message ?? payload.data);
   if (!answers) {
