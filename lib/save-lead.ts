@@ -6,6 +6,7 @@ type Extra = {
   consent?: boolean;
   waMessageId?: string;
   flowToken?: string;
+  answers?: Record<string, unknown>;
 };
 
 // Saves a validated lead, flags repeat registrations and links it to the caller's latest missed call.
@@ -34,6 +35,7 @@ export async function saveLead(data: LeadInput, extra: Extra) {
       callSid: call?.callSid,
       waMessageId: extra.waMessageId,
       flowToken: extra.flowToken?.slice(0, 128),
+      answers: extra.answers as object | undefined,
     },
   });
 

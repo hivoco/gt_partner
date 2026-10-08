@@ -46,9 +46,26 @@ model Lead {
   callSid          String?  @map("call_sid") @db.VarChar(64) // latest missed call from this phone
   waMessageId      String?  @unique @map("wa_message_id") @db.VarChar(128) // guards against webhook retries
   flowToken        String?  @map("flow_token") @db.VarChar(128)
+  answers          Json? // the form answers exactly as received
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@index([phone])
   @@index([createdAt])
   @@map("leads")
+}
+
+// Incoming WhatsApp messages from Interakt, kept for debugging and audit.
+model WebhookEvent {
+  id        String   @id @default(uuid()) @db.Char(36)
+  provider  String   @db.VarChar(20)
+  eventType String?  @map("event_type") @db.VarChar(50)
+  status    String   @db.VarChar(20) // saved | duplicate | not_flow | invalid
+  error     String?  @db.VarChar(500)
+  leadId    String?  @map("lead_id") @db.Char(36)
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([status])
+  @@map("webhook_events")
 }

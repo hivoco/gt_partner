@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { validateLead } from "@/lib/lead";
 import { saveLead } from "@/lib/save-lead";
+import { mapFlowAnswers } from "@/lib/flow-answers";
 
 // Meta webhook verification: GET ?hub.mode=subscribe&hub.verify_token=...&hub.challenge=...
 export function GET(req: Request) {
@@ -56,7 +57,8 @@ export async function POST(req: Request) {
     }
 
     // Mobile number comes from the WhatsApp sender, not the form.
-    const { data, errors } = validateLead({ ...answers, phone: msg.from });
+    const mapped = mapFlowAnswers(answers);
+    const { data, errors } = validateLead({ ...mapped, phone: msg.from });
     if (!data) {
       console.error("Incomplete Flow submission", msg.id, errors);
       continue;
@@ -65,7 +67,8 @@ export async function POST(req: Request) {
     try {
       await saveLead(data, {
         source: "whatsapp_flow",
-        consent: answers.consent === true || answers.consent === "true",
+        consent: mapped.consent === true,
+        answers,
         waMessageId: msg.id,
         flowToken: typeof answers.flow_token === "string" ? answers.flow_token : undefined,
       });
