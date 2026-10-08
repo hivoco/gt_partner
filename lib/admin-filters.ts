@@ -16,6 +16,7 @@ export function leadWhere(p: Params): Prisma.LeadWhereInput {
   const q = p.q?.trim();
   return {
     createdAt: dateRange(p),
+    source: p.source || undefined,
     state: p.state || undefined,
     existingRetailer: p.retailer === "yes" ? true : p.retailer === "no" ? false : undefined,
     duplicate: p.dup === "hide" ? false : p.dup === "only" ? true : undefined,
