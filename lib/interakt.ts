@@ -1,6 +1,14 @@
 // Sends an approved WhatsApp template through Interakt's public API.
 // https://www.interakt.shop/resource-center/send-template-message-api
 
+// Image/video/document header for templates that have one. fileName is only used for documents.
+function mediaHeader() {
+  const url = process.env.INTERAKT_HEADER_MEDIA_URL;
+  if (!url) return {};
+  const fileName = process.env.INTERAKT_HEADER_FILE_NAME;
+  return { headerValues: [url], ...(fileName ? { fileName } : {}) };
+}
+
 type SendResult = { ok: true; id?: string } | { ok: false; error: string };
 
 export async function sendTemplate(phone: string, callbackData?: string): Promise<SendResult> {
@@ -17,7 +25,11 @@ export async function sendTemplate(phone: string, callbackData?: string): Promis
         phoneNumber: phone,
         type: "Template",
         callbackData, // echoed back in Interakt's delivery webhooks
-        template: { name: template, languageCode: process.env.INTERAKT_TEMPLATE_LANG ?? "en" },
+        template: {
+          name: template,
+          languageCode: process.env.INTERAKT_TEMPLATE_LANG ?? "en",
+          ...mediaHeader(),
+        },
       }),
       signal: AbortSignal.timeout(15_000),
     });
