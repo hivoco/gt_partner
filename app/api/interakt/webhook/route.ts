@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { processInteraktPayload, type InteraktPayload } from "@/lib/interakt-webhook";
 import { isStatusEvent, processStatusEvent } from "@/lib/interakt-status";
+import { sendText } from "@/lib/interakt";
 
 /**
  * Interakt webhook (Developer Settings → Webhook URL):
@@ -50,6 +52,16 @@ export async function POST(req: Request) {
       ? await processStatusEvent(payload as Parameters<typeof processStatusEvent>[0])
       : await processInteraktPayload(payload);
     await log(payload.type, result.status, payload, result.error, result.leadId);
+
+    // Thank the user once per submission (Interakt sends each submission as two events; only one is "saved").
+    const thanks = process.env.WA_THANK_YOU_MESSAGE;
+    if (result.status === "saved" && result.phone && thanks) {
+      const { phone, leadId } = result;
+      after(async () => {
+        const sent = await sendText(phone, thanks, leadId);
+        if (!sent.ok) await log("thank_you", "thanks_failed", { phone, leadId }, sent.error, leadId);
+      });
+    }
   } catch (err) {
     console.error("Failed to process Interakt webhook", err);
     await log(payload.type, "error", payload, String(err));

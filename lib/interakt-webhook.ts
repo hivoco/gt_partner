@@ -16,7 +16,7 @@ export type InteraktPayload = {
 // Interakt sends each Flow submission twice: as message_received and as message_api_flow_response.
 export const FLOW_EVENT_TYPES = ["message_received", "message_api_flow_response"];
 
-export type ProcessResult = { status: string; error?: string; leadId?: string };
+export type ProcessResult = { status: string; error?: string; leadId?: string; phone?: string };
 
 export async function processInteraktPayload(payload: InteraktPayload): Promise<ProcessResult> {
   if (!payload.type || !FLOW_EVENT_TYPES.includes(payload.type)) return { status: "ignored" };
@@ -56,7 +56,7 @@ export async function processInteraktPayload(payload: InteraktPayload): Promise<
       submittedAt: submittedAt && !isNaN(submittedAt.getTime()) ? submittedAt : undefined,
       flowToken: typeof answers.flow_token === "string" ? answers.flow_token : undefined,
     });
-    return { status: "saved", leadId: lead.id };
+    return { status: "saved", leadId: lead.id, phone: data.phone };
   } catch (err) {
     // Both events for one submission can arrive together; the second hits the unique message id.
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return { status: "duplicate" };
