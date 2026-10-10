@@ -25,7 +25,8 @@ export default async function WhatsAppLeadsPage({ searchParams }: { searchParams
     prisma.lead.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     prisma.lead.count({ where }),
     prisma.lead.count({ where: { source: SOURCE, duplicate: false } }),
-    prisma.call.groupBy({ by: ["phone"], where: { waStatus: "sent" } }).then((r) => r.length),
+    // Numbers the form reached: accepted by Interakt, whatever the delivery status is now (failed excluded).
+    prisma.call.groupBy({ by: ["phone"], where: { waStatus: { in: ["sent", "delivered", "read"] } } }).then((r) => r.length),
     prisma.webhookEvent.count({ where: { provider: "interakt", status: { in: ["invalid", "error"] } } }),
     prisma.lead
       .groupBy({ by: ["state"], where: { source: SOURCE }, orderBy: { state: "asc" } })
@@ -38,7 +39,8 @@ export default async function WhatsAppLeadsPage({ searchParams }: { searchParams
       (c) => [c.callSid, c.createdAt]
     )
   );
-  const completion = templatesSent ? `${((uniqueLeads / templatesSent) * 100).toFixed(1)}%` : "–";
+  // Capped: leads from numbers we never sent to (e.g. a manual Interakt broadcast) shouldn't push this past 100%.
+  const completion = templatesSent ? `${Math.min(100, (uniqueLeads / templatesSent) * 100).toFixed(1)}%` : "–";
 
   return (
     <div className="space-y-5">

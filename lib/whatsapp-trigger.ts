@@ -13,7 +13,12 @@ export async function triggerWhatsApp(callSid: string, phone: string) {
 
   if (RESEND_HOURS > 0) {
     const recent = await prisma.call.findFirst({
-      where: { phone, waStatus: "sent", waSentAt: { gte: new Date(Date.now() - RESEND_HOURS * 3600_000) } },
+      // Any successful send counts, even after it moved on to delivered/read; failed sends may be retried.
+      where: {
+        phone,
+        waStatus: { in: ["sent", "delivered", "read"] },
+        waSentAt: { gte: new Date(Date.now() - RESEND_HOURS * 3600_000) },
+      },
       select: { callSid: true },
     });
     if (recent) {
